@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Don's Dilemma</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #121212;
+            color: #e0e0e0;
+        }
+        #game-container {
+            background-color: #1e1e1e;
+            border-radius: 15px;
+            padding: 30px;
+            width: 400px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #ff0000;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        .stat-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .stat {
+            display: flex;
+            flex-direction: column;
+        }
+        .stat-label {
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #b0b0b0;
+        }
+        .progress-bar {
+            height: 12px;
+            background-color: #2c2c2c;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .progress {
+            height: 100%;
+            background-color: #8300bb;
+            width: 50%;
+            transition: width 0.3s ease;
+        }
+        #years-in-power {
+            text-align: center;
+            font-size: 1.4em;
+            margin-bottom: 25px;
+            color: #ffffff;
+        }
+        #character-image {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            margin: 0 auto 25px;
+            display: block;
+            object-fit: cover;
+            border: 3px solid #8300bb;
+            box-shadow: 0 5px 15px rgba(217, 121, 255, 0.3);
+        }
+        #character-name {
+            text-align: center;
+            font-size: 1.6em;
+            margin-bottom: 15px;
+            color: #f8f8f8;
+        }
+        #dialogue {
+            text-align: center;
+            margin-bottom: 25px;
+            font-style: italic;
+            line-height: 1.4;
+        }
+        .choice-button {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            background-color: #3a3a3a;
+            border: none;
+            border-radius: 8px;
+            color: #e0e0e0;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .choice-button:hover {
+            background-color: #4a4a4a;
+        }
+        .hidden {
+            display: none;
+        }
+        #timer-container {
+            display: none;  /* Hide by default */
+        }
+        #timer-bar {
+            width: 100%;
+            height: 10px;
+            background-color: #2c2c2c;
+            margin-top: 20px;
+        }
+        #timer-progress {
+            width: 100%;
+            height: 100%;
+            background-color: #4CAF50;
+            transition: width 0.1s linear;
+        }
+        .flash {
+            animation: flash-animation 0.5s;
+        }
+        @keyframes flash-animation {
+            0%, 50%, 100% { background-color: #1e1e1e; }
+            25%, 75% { background-color: #ff0000; }
+        }
+        /* New class to show the timer */
+        .show-timer #timer-container {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="intro-screen">
+            <h1>Don's Dilemma</h1>
+            <p>Welcome to the world of organized crime. Balance your resources and stay in power as long as possible.</p>
+            <button id="start-button" class="choice-button">Start Game</button>
+        </div>
+        <div id="game-screen" class="hidden">
+            <h1>Don's Empire</h1>
+            <div class="stat-container">
+                <div class="stat">
+                    <span class="stat-label">Arms</span>
+                    <div class="progress-bar">
+                        <div id="arms-progress" class="progress"></div>
+                    </div>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Money</span>
+                    <div class="progress-bar">
+                        <div id="money-progress" class="progress"></div>
+                    </div>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Family</span>
+                    <div class="progress-bar">
+                        <div id="family-progress" class="progress"></div>
+                    </div>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Church</span>
+                    <div class="progress-bar">
+                        <div id="church-progress" class="progress"></div>
+                    </div>
+                </div>
+            </div>
+            <p id="years-in-power">0 years in power</p>
+            <img id="character-image" src="placeholder.jpg" alt="Character">
+            <p id="character-name"></p>
+            <p id="dialogue"></p>
+            <button id="choice1" class="choice-button"></button>
+            <button id="choice2" class="choice-button"></button>
+        </div>
+        <div id="timer-container">
+            <div id="timer-bar">
+                <div id="timer-progress"></div>
+            </div>
+        </div>
+        <div id="game-over-screen" class="hidden">
+            <h1>Game Over</h1>
+            <p id="death-message"></p>
+            <button id="restart-button" class="choice-button">Play Again</button>
+        </div>
+    </div>
+    <script>
+const gameState = {
+    arms: 5,
+    money: 5,
+    family: 5,
+    church: 5,
+    yearsInPower: 0,
+    lastCharacterType: null,
+    usedEvents: new Set(),
+    currentEvent: null,
+    timer: null
+};
+
+const MAX_STAT = 10;
+const MIN_STAT = 0;
+const DECISION_TIME = 20000; 
+const characters = {
+    "Consigliere": [
+        { image: "consigliere1.jpg", name: "Salvatore 'Sal' Russo", description: "The wise and strategic advisor." },
+        { image: "consigliere2.jpg", name: "Antonio 'Tony' Bellini", description: "The shrewd and calculating counselor." },
+        { image: "consigliere3.jpg", name: "Giuseppe 'Joe' Lombardi", description: "The pragmatic and loyal confidant." }
+    ],
+    "Enforcer": [
+        { image: "enforcer1.jpg", name: "Big Louie 'The Hammer' Martino", description: "The intimidating and forceful enforcer." },
+        { image: "enforcer2.jpg", name: "Vincent 'Vinnie' Rossi", description: "The brawny and loyal muscle." },
+        { image: "enforcer3.jpg", name: "Frank 'The Tank' DeMarco", description: "The steadfast and fearsome enforcer." }
+    ],
+    "Informant": [
+        { image: "informant1.jpg", name: "Jimmy 'The Weasel' Mancuso", description: "The slippery and untrustworthy spy." },
+        { image: "informant2.jpg", name: "Charlie 'The Rat' Fiore", description: "The cunning and deceitful informer." },
+        { image: "informant3.jpg", name: "Tommy 'The Squealer' Marino", description: "The talkative and unreliable informant." }
+    ],
+    "Capo": [
+        { image: "capo1.jpg", name: "Vito 'The Captain' Giordano", description: "The ambitious and strategic capo." },
+        { image: "capo2.jpg", name: "Rocco 'Rocky' Moretti", description: "The commanding and respected leader." },
+        { image: "capo3.jpg", name: "Nino 'The Knife' Santoro", description: "The ruthless and tactical capo." }
+    ],
+    "Dirty Cop": [
+        { image: "dirtycop1.jpg", name: "Detective Mick O'Reilly", description: "The corrupt and greedy lawman." },
+        { image: "dirtycop2.jpg", name: "Officer Frank 'Dirty' Delaney", description: "The bribable and unethical cop." },
+        { image: "dirtycop3.jpg", name: "Sgt. Jack 'Shady' Murphy", description: "The manipulative and corrupt officer." }
+    ],
+    "Business Owner": [
+        { image: "businessowner1.jpg", name: "Tony 'The Mechanic' Lombardi", description: "The crafty and resourceful frontman." },
+        { image: "businessowner2.jpg", name: "Giovanni 'The Shopkeeper' Ricci", description: "The pragmatic and strategic businessman." },
+        { image: "businessowner3.jpg", name: "Carlo 'The Café' Bianchi", description: "The shrewd and opportunistic businessman." }
+    ],
+    "Politician": [
+        { image: "politician1.jpg", name: "Mayor Frank 'The Handshake' Romano", description: "The influential and corrupt politician." },
+        { image: "politician2.jpg", name: "Senator Michael 'The Fixer' Marino", description: "The shady and deal-making politician." },
+        { image: "politician3.jpg", name: "Councilman Joe 'The Deal' Moretti", description: "The crooked and transactional politician." }
+    ],
+    "Rival Leader": [
+        { image: "rivalleader1.jpg", name: "Patrick 'Paddy' O'Connor", description: "The rival gang's ambitious leader." },
+        { image: "rivalleader2.jpg", name: "Connor 'The Boss' McNamara", description: "The ruthless and strategic rival leader." },
+        { image: "rivalleader3.jpg", name: "Liam 'The King' Byrne", description: "The fearless and cunning gang leader." }
+    ],
+    "Money Man": [
+        { image: "moneyman1.jpg", name: "Carlo 'The Calculator' Ricci", description: "The meticulous and crafty accountant." },
+        { image: "moneyman2.jpg", name: "Vinny 'The Book' Carbone", description: "The clever and efficient money man." },
+        { image: "moneyman3.jpg", name: "Sal 'The Ledger' Mancini", description: "The precise and shrewd financier." }
+    ],
+    "Family Member": [
+        { image: "familymember1.jpg", name: "Gina 'Little Sis' Lombardi", description: "The caring but ambitious sister." },
+        { image: "familymember2.jpg", name: "Maria 'The Confidant' Rossi", description: "The loyal and protective family member." },
+        { image: "familymember3.jpg", name: "Angela 'The Protector' Bianchi", description: "The supportive but shrewd relative." }
+    ],
+    "Priest": [
+        { image: "priest1.jpg", name: "Father Michael 'The Confessor' Donato", description: "The compassionate and wise priest." },
+        { image: "priest2.jpg", name: "Father Dominic 'The Guide' Lombardi", description: "The ethical and insightful clergyman." },
+        { image: "priest3.jpg", name: "Father Antonio 'The Shepherd' Ricci", description: "The moral and strategic priest." }
+    ],
+    "Nun": [
+        { image: "nun1.jpg", name: "Sister Mary 'The Saint' De Luca", description: "The charitable and dedicated nun." },
+        { image: "nun2.jpg", name: "Sister Teresa 'The Healer' Romano", description: "The caring and community-oriented nun." },
+        { image: "nun3.jpg", name: "Sister Frances 'The Advocate' Russo", description: "The activist and compassionate nun." }
+    ]
+};
+
+const scenarios = {
+    "Consigliere": [
+        {
+            id: "consigliere_1",
+            dialogue: "The DiMarco family is moving in on our docks. Do we sit down for a negotiation over a meal at Luigi’s or arrange a little demonstration of our firepower at their warehouse?",
+            choices: [
+                { text: "Sit down for negotiation", effects: { money: -2, family: 3 } },
+                { text: "Demonstrate firepower", effects: { arms: 2, family: -2 } }
+            ]
+        },
+        {
+            id: "consigliere_2",
+            dialogue: "We got a trial coming up that could cost us dearly. Do we send a fat envelope to the judge’s chambers or have a friendly chat with the key witnesses to remind them where their loyalties should lie?",
+            choices: [
+                { text: "Send a fat envelope", effects: { money: -3, church: 2 } },
+                { text: "Chat with witnesses", effects: { arms: 2, family: -1 } }
+            ]
+        },
+        {
+            id: "consigliere_3",
+            dialogue: "The church is looking for donations to rebuild the orphanage. Do we show our generosity and keep the priest on our side, or just throw in a token amount and save our cash for more pressing matters?",
+            choices: [
+                { text: "Show generosity", effects: { money: -2, church: 3 } },
+                { text: "Token amount", effects: { money: -1, church: 1 } }
+            ]
+        },
+        {
+            id: "consigliere_4",
+            dialogue: "Councilman Ricci needs backing for his reelection campaign. Do we throw some cash his way to keep him in our pocket or stay neutral and avoid the heat from his opponents?",
+            choices: [
+                { text: "Back his campaign", effects: { money: -2, family: 2 } },
+                { text: "Stay neutral", effects: { family: -1, arms: 1 } }
+            ]
+        },
+        {
+            id: "consigliere_5",
+            dialogue: "We need to handle a delicate issue with the McCarthy gang. Should we use our connections to smooth things over or send a clear message by taking out one of their key men?",
+            choices: [
+                { text: "Use connections", effects: { family: 2, money: -1 } },
+                { text: "Send a message", effects: { arms: 2, church: -2 } }
+            ]
+        }
+    ],
+    "Enforcer": [
+        {
+            id: "enforcer_1",
+            dialogue: "Old man Giovanni's deli hasn’t paid up for protection this month. Do we give him a visit to remind him how things work around here or torch the place to set an example?",
+            choices: [
+                { text: "Give him a visit", effects: { money: 1, family: -1 } },
+                { text: "Torch the place", effects: { money: 2, church: -2 } }
+            ]
+        },
+        {
+            id: "enforcer_2",
+            dialogue: "One of our guys has been talking to the Feds. Should we break his legs to shut him up, or just give him a good scare to remind him who he’s dealing with?",
+            choices: [
+                { text: "Break his legs", effects: { arms: 2, family: -2 } },
+                { text: "Give him a scare", effects: { church: -1, arms: 1 } }
+            ]
+        },
+        {
+            id: "enforcer_3",
+            dialogue: "The O’Malley boys have been stepping on our turf. Do we hit them hard to teach them a lesson, or try to talk things out and avoid a bloody mess?",
+            choices: [
+                { text: "Hit them hard", effects: { arms: 2, church: -2 } },
+                { text: "Talk things out", effects: { family: 2, money: -1 } }
+            ]
+        },
+        {
+            id: "enforcer_4",
+            dialogue: "We got a politician giving us trouble. Do we intimidate him to make him fall in line or offer him a bribe to buy his loyalty?",
+            choices: [
+                { text: "Intimidate him", effects: { arms: 2, family: -2 } },
+                { text: "Offer a bribe", effects: { money: -2, church: 1 } }
+            ]
+        },
+        {
+            id: "enforcer_5",
+            dialogue: "The McCarthy gang is attacking our allies. Should we rally our forces to defend them or take advantage and strike at our enemies while they’re distracted?",
+            choices: [
+                { text: "Defend our allies", effects: { family: 3, money: -1 } },
+                { text: "Strike our enemies", effects: { arms: 2, church: -1 } }
+            ]
+        }
+    ],
+    "Informant": [
+        {
+            id: "informant_1",
+            dialogue: "I got some dirt on the DiMarco family’s operation. Do we blackmail them for our own gain, or sell the info to their enemies for a quick payday?",
+            choices: [
+                { text: "Blackmail them", effects: { family: 2, church: -1 } },
+                { text: "Sell the info", effects: { money: 2, arms: -1 } }
+            ]
+        },
+        {
+            id: "informant_2",
+            dialogue: "There's a dirty cop looking to switch sides. Do we turn him to our cause for long-term benefits or just pay him off for some short-term leverage?",
+            choices: [
+                { text: "Turn him to our cause", effects: { family: -1, arms: 2 } },
+                { text: "Pay him off", effects: { money: -2, church: 1 } }
+            ]
+        },
+        {
+            id: "informant_3",
+            dialogue: "Got some dirt on a high-ranking city official. Do we blackmail him to get what we want, or leak the info to the press and let the public eat him alive?",
+            choices: [
+                { text: "Blackmail the official", effects: { arms: 1, money: 2 } },
+                { text: "Leak to the press", effects: { family: 1, church: -2 } }
+            ]
+        },
+        {
+            id: "informant_4",
+            dialogue: "We can gather intel on the church’s next big move or a local politician’s shady dealings. Which one should we focus on?",
+            choices: [
+                { text: "Focus on the church", effects: { church: -2, family: 1 } },
+                { text: "Focus on the politician", effects: { money: 2, arms: -1 } }
+            ]
+        },
+        {
+            id: "informant_5",
+            dialogue: "There's a secret meeting happening between our rivals. Should we spy on it to gather intel or disrupt it to throw them into chaos?",
+            choices: [
+                { text: "Spy on the meeting", effects: { family: 1, money: 2 } },
+                { text: "Disrupt the meeting", effects: { arms: 2, church: -1 } }
+            ]
+        }
+    ],
+    "Capo": [
+        {
+            id: "capo_1",
+            dialogue: "One of our crews is skimming from the take. Do we make an example out of them to keep everyone in line or negotiate a new deal to avoid more problems?",
+            choices: [
+                { text: "Make an example", effects: { family: -2, money: 1 } },
+                { text: "Negotiate a new deal", effects: { money: 2, church: -1 } }
+            ]
+        },
+        {
+            id: "capo_2",
+            dialogue: "We got a valuable shipment coming in. Should we hide it to avoid attention or secure it with muscle to keep it safe?",
+            choices: [
+                { text: "Hide it away", effects: { money: -1, family: 1 } },
+                { text: "Secure with muscle", effects: { arms: 1, church: -2 } }
+            ]
+        },
+        {
+            id: "capo_3",
+            dialogue: "Do we promote from within to keep morale high or bring in new blood to shake things up and bring fresh ideas?",
+            choices: [
+                { text: "Promote from within", effects: { family: 2, arms: -1 } },
+                { text: "Bring in new blood", effects: { money: -1, family: 1 } }
+            ]
+        },
+        {
+            id: "capo_4",
+            dialogue: "We need more muscle. Do we recruit local tough guys or hire mercenaries who know how to handle themselves in a fight?",
+            choices: [
+                { text: "Recruit locals", effects: { family: 2, money: -1 } },
+                { text: "Hire mercenaries", effects: { arms: 2, church: -1 } }
+            ]
+        },
+        {
+            id: "capo_5",
+            dialogue: "We’re getting some heat from the church. Do we make a hefty donation to cool things down or use our influence to keep them off our backs?",
+            choices: [
+                { text: "Hefty donation", effects: { money: -2, church: 2 } },
+                { text: "Use our influence", effects: { church: 1, family: -1 } }
+            ]
+        }
+    ],
+    "Politician": [
+        {
+            id: "politician_1",
+            dialogue: "My campaign needs a boost. Do you donate to my cause or ask for a favor that might help us down the line?",
+            choices: [
+                { text: "Donate to the campaign", effects: { money: -2, church: 1 } },
+                { text: "Ask for a favor", effects: { family: 2, arms: -1 } }
+            ]
+        },
+        {
+            id: "politician_2",
+            dialogue: "I can push through a new law or block a competitor’s initiative. Which should we go for?",
+            choices: [
+                { text: "Push the new law", effects: { church: 2, family: -1 } },
+                { text: "Block the competitor", effects: { arms: 2, money: -1 } }
+            ]
+        },
+        {
+            id: "politician_3",
+            dialogue: "We need more influence. Should we fund the local church’s charity or support a local gang for protection?",
+            choices: [
+                { text: "Fund the church's charity", effects: { money: -2, church: 3 } },
+                { text: "Support the gang", effects: { arms: 2, family: -1 } }
+            ]
+        },
+        {
+            id: "politician_4",
+            dialogue: "Do we align with the church to gain public support or focus on our business interests for more immediate returns?",
+            choices: [
+                { text: "Align with the church", effects: { church: 3, family: -2 } },
+                { text: "Focus on business", effects: { money: 2, arms: -1 } }
+            ]
+        },
+        {
+            id: "politician_5",
+            dialogue: "Should we back a new law that benefits the community or support a local initiative that might be more lucrative for us?",
+            choices: [
+                { text: "Back the new law", effects: { church: 2, money: -1 } },
+                { text: "Support local initiative", effects: { family: 2, arms: -1 } }
+            ]
+        }
+    ],
+    "Rival Leader": [
+        {
+            id: "rival_leader_1",
+            dialogue: "You've been stepping into our territory. Should we sit down for a talk or prepare for a showdown?",
+            choices: [
+                { text: "Sit down for a talk", effects: { family: 2, money: -2 } },
+                { text: "Prepare for a showdown", effects: { arms: 2, church: -1 } }
+            ]
+        },
+        {
+            id: "rival_leader_2",
+            dialogue: "Do we make peace to avoid a war or plan an ambush to take out your key people?",
+            choices: [
+                { text: "Make peace", effects: { family: 2, church: -1 } },
+                { text: "Plan an ambush", effects: { arms: 2, money: -2 } }
+            ]
+        },
+        {
+            id: "rival_leader_3",
+            dialogue: "We have a chance to expand our operations. Should we take it or focus on defending our current territory?",
+            choices: [
+                { text: "Expand operations", effects: { arms: 2, family: -1 } },
+                { text: "Defend territory", effects: { church: 2, money: -2 } }
+            ]
+        },
+        {
+            id: "rival_leader_4",
+            dialogue: "Do we form an alliance to strengthen our position or go it alone to maintain our independence?",
+            choices: [
+                { text: "Form an alliance", effects: { family: 2, church: -1 } },
+                { text: "Go it alone", effects: { arms: 2, money: -1 } }
+            ]
+        },
+        {
+            id: "rival_leader_5",
+            dialogue: "We can target your supply line or your leader. Which should we go for?",
+            choices: [
+                { text: "Target supply line", effects: { arms: 2, money: -2 } },
+                { text: "Target leader", effects: { family: 2, church: -1 } }
+            ]
+        }
+    ],
+    "Money Man": [
+        {
+            id: "money_man_1",
+            dialogue: "We have a new opportunity to launder money. Should we take a high-risk approach for bigger returns or play it safe?",
+            choices: [
+                { text: "Take a high-risk approach", effects: { money: 3, church: -2 } },
+                { text: "Play it safe", effects: { money: 1, family: 1 } }
+            ]
+        },
+        {
+            id: "money_man_2",
+            dialogue: "Should we invest our funds in real estate for steady income or in stocks for higher potential returns?",
+            choices: [
+                { text: "Invest in real estate", effects: { money: -2, family: 2 } },
+                { text: "Invest in stocks", effects: { arms: 1, church: 1 } }
+            ]
+        },
+        {
+            id: "money_man_3",
+            dialogue: "Do we funnel our money through the church to keep it hidden or through a legitimate business for more control?",
+            choices: [
+                { text: "Through the church", effects: { church: 2, money: -2 } },
+                { text: "Through a business", effects: { arms: 1, family: 1 } }
+            ]
+        },
+        {
+            id: "money_man_4",
+            dialogue: "We need more capital. Should we take a loan with high interest or sell off some assets to raise funds?",
+            choices: [
+                { text: "Take a loan", effects: { money: 2, family: -1 } },
+                { text: "Sell assets", effects: { arms: 1, church: -1 } }
+            ]
+        },
+        {
+            id: "money_man_5",
+            dialogue: "A new client wants to work with us. Should we charge a high fee up front or build a relationship for future business?",
+            choices: [
+                { text: "Charge a high fee", effects: { money: 2, church: -1 } },
+                { text: "Build a relationship", effects: { family: 2, arms: -1 } }
+            ]
+        }
+    ],
+    "Family Member": [
+        {
+            id: "family_member_1",
+            dialogue: "I want to expand our speakeasy. Should we take on a new partner to share the risk or handle it ourselves to keep control?",
+            choices: [
+                { text: "Take on a partner", effects: { family: 2, money: -1 } },
+                { text: "Handle it ourselves", effects: { arms: 1, church: -2 } }
+            ]
+        },
+        {
+            id: "family_member_2",
+            dialogue: "Do we use family funds to invest in our new business or seek external investors to minimize our risk?",
+            choices: [
+                { text: "Use family funds", effects: { money: -2, family: 2 } },
+                { text: "Seek external investors", effects: { arms: 1, church: 1 } }
+            ]
+        },
+        {
+            id: "family_member_3",
+            dialogue: "Should we help a family member who’s in trouble with the law or focus on expanding our business to ensure future growth?",
+            choices: [
+                { text: "Help the family member", effects: { family: 2, money: -1 } },
+                { text: "Focus on business", effects: { arms: 1, church: 1 } }
+            ]
+        },
+        {
+            id: "family_member_4",
+            dialogue: "Do we expand our influence in the community by funding local projects or strengthen our business operations to safeguard our interests?",
+            choices: [
+                { text: "Expand influence", effects: { family: 2, money: -1 } },
+                { text: "Strengthen business", effects: { arms: 1, church: 1 } }
+            ]
+        },
+        {
+            id: "family_member_5",
+            dialogue: "Should we fund a community project to improve our standing with the locals or reinvest in the family business to secure our future?",
+            choices: [
+                { text: "Fund community project", effects: { church: 2, money: -1 } },
+                { text: "Reinvest in business", effects: { arms: 1, family: 1 } }
+            ]
+        }
+    ],
+    "Priest": [
+        {
+            id: "priest_1",
+            dialogue: "My child, the church is in need of a donation to support our outreach programs. Should we make a generous contribution to earn the favor of the congregation or give a modest amount and keep more for ourselves?",
+            choices: [
+                { text: "Generous contribution", effects: { money: -2, church: 3 } },
+                { text: "Modest amount", effects: { money: -1, church: 1 } }
+            ]
+        },
+        {
+            id: "priest_2",
+            dialogue: "The diocese is pressuring us for more funds. Should we skim off some from our donations or hold a charity event to raise the money legitimately?",
+            choices: [
+                { text: "Skim off donations", effects: { money: 2, church: -2 } },
+                { text: "Hold a charity event", effects: { family: 1, church: 2 } }
+            ]
+        },
+        {
+            id: "priest_3",
+            dialogue: "The community is losing faith in your leadership. Should you make a public confession to atone for your actions or donate to the church to improve your standing?",
+            choices: [
+                { text: "Public confession", effects: { family: -1, church: 3 } },
+                { text: "Donate to the church", effects: { money: -2, church: 2 } }
+            ]
+        },
+        {
+            id: "priest_4",
+            dialogue: "We need to fund a new community center. Should we tap into our emergency funds or ask for donations from the wealthier parishioners?",
+            choices: [
+                { text: "Use emergency funds", effects: { money: -2, church: 3 } },
+                { text: "Ask for donations", effects: { family: 1, church: 2 } }
+            ]
+        },
+        {
+            id: "priest_5",
+            dialogue: "There’s a rumor going around that you’ve been involved in some unsavory activities. Should we use church funds to silence the gossip or rely on your connections to clean up the mess?",
+            choices: [
+                { text: "Use church funds", effects: { money: 2, church: -2 } },
+                { text: "Use connections", effects: { family: -1, arms: 2 } }
+            ]
+        }
+    ],
+    "Nun": [
+        {
+            id: "nun_1",
+            dialogue: "The orphanage needs urgent repairs, but we also require more volunteers. Should we make a sizable donation or send some help from our congregation?",
+            choices: [
+                { text: "Make a sizable donation", effects: { money: -2, church: 2 } },
+                { text: "Send volunteers", effects: { family: 1, church: 1 } }
+            ]
+        },
+        {
+            id: "nun_2",
+            dialogue: "The community is in dire need of support. Should we open a new soup kitchen to feed the hungry or host a charity gala to raise funds?",
+            choices: [
+                { text: "Open a soup kitchen", effects: { money: -1, church: 2 } },
+                { text: "Host a charity gala", effects: { family: 2, church: 1 } }
+            ]
+        },
+        {
+            id: "nun_3",
+            dialogue: "We need to launder some money discreetly. Should we funnel it through the church or extort a local business for our cause?",
+            choices: [
+                { text: "Funnel through the church", effects: { money: 2, church: -2 } },
+                { text: "Extort the business", effects: { arms: 1, family: -1 } }
+            ]
+        },
+        {
+            id: "nun_4",
+            dialogue: "Our local shelter is struggling. Should we support it directly or invest in community outreach programs to address the root cause?",
+            choices: [
+                { text: "Support the shelter", effects: { money: -2, church: 2 } },
+                { text: "Community outreach", effects: { family: 2, church: 1 } }
+            ]
+        },
+        {
+            id: "nun_5",
+            dialogue: "We have limited resources. Should we donate to the church to keep our standing or volunteer our time to help the needy?",
+            choices: [
+                { text: "Donate to the church", effects: { money: -2, church: 3 } },
+                { text: "Volunteer time", effects: { family: 2, church: 1 } }
+            ]
+        }
+    ]
+};
+
+function getRandomCharacter() {
+    const availableTypes = Object.keys(characters).filter(type => type !== gameState.lastCharacterType);
+    const randomType = availableTypes[Math.floor(Math.random() * availableTypes.length)];
+    const characterOptions = characters[randomType];
+    return {
+        ...characterOptions[Math.floor(Math.random() * characterOptions.length)],
+        type: randomType
+    };
+}
+
+function getRandomEvent(characterType) {
+    const availableEvents = scenarios[characterType].filter(scenario => !gameState.usedEvents.has(scenario.id));
+    if (availableEvents.length === 0) {
+        gameState.usedEvents.clear();
+        return getRandomEvent(characterType);
+    }
+    const event = availableEvents[Math.floor(Math.random() * availableEvents.length)];
+    gameState.usedEvents.add(event.id);
+    return event;
+}
+
+// UI Functions
+function updateUI() {
+    ['arms', 'money', 'family', 'church'].forEach(stat => {
+        const progressBar = document.getElementById(`${stat}-progress`);
+        if (progressBar) {
+            progressBar.style.width = `${gameState[stat] * 10}%`;
+        }
+    });
+    document.getElementById('years-in-power').textContent = `${gameState.yearsInPower} years in power`;
+}
+
+function showGameOver(reason) {
+    clearTimeout(gameState.timer);
+    document.getElementById('game-screen').classList.add('hidden');
+    document.getElementById('game-over-screen').classList.remove('hidden');
+    document.getElementById('game-container').classList.remove('show-timer');
+    document.getElementById('death-message').textContent = `${reason} You lasted ${gameState.yearsInPower} years as the Don.`;
+}
+
+// Game Logic Functions
+function newTurn() {
+    const character = getRandomCharacter();
+    gameState.lastCharacterType = character.type;
+    const event = getRandomEvent(character.type);
+    gameState.currentEvent = event;
+
+    document.getElementById('character-image').src = character.image;
+    document.getElementById('character-name').textContent = character.name;
+    document.getElementById('dialogue').textContent = event.dialogue;
+    document.getElementById('choice1').textContent = event.choices[0].text;
+    document.getElementById('choice2').textContent = event.choices[1].text;
+
+    updateUI();
+    startTimer();
+}
+
+function makeChoice(choiceIndex) {
+    clearTimeout(gameState.timer);
+    const effects = gameState.currentEvent.choices[choiceIndex].effects;
+    for (let stat in effects) {
+        gameState[stat] = Math.max(MIN_STAT, Math.min(MAX_STAT, gameState[stat] + effects[stat]));
+    }
+    gameState.yearsInPower++;
+    updateUI();
+    
+    if (checkGameOver()) {
+        return;
+    }
+    newTurn();
+}
+
+function checkGameOver() {
+    const stats = ['arms', 'money', 'family', 'church'];
+    for (let stat of stats) {
+        if (gameState[stat] <= MIN_STAT) {
+            showGameOver(`You've run out of ${stat}. Your empire crumbles.`);
+            return true;
+        }
+        if (gameState[stat] >= MAX_STAT) {
+            const reasons = {
+                arms: "Your military power became too strong, and you were overthrown in a coup.",
+                money: "Your extreme wealth attracted too much attention, leading to your downfall.",
+                family: "Your family became too powerful and decided they no longer needed you.",
+                church: "The church's influence grew too strong, and they turned against you."
+            };
+            showGameOver(reasons[stat]);
+            return true;
+        }
+    }
+    return false;
+}
+
+function startTimer() {
+    const timerBar = document.getElementById('timer-progress');
+    timerBar.style.width = '100%';
+    let timeLeft = DECISION_TIME;
+
+    function updateTimer() {
+        timeLeft -= 100;
+        const width = (timeLeft / DECISION_TIME) * 100;
+        timerBar.style.width = `${width}%`;
+
+        if (timeLeft <= 0) {
+            timeExpired();
+        } else {
+            gameState.timer = setTimeout(updateTimer, 100);
+        }
+    }
+
+    gameState.timer = setTimeout(updateTimer, 100);
+}
+
+function timeExpired() {
+    document.getElementById('game-container').classList.add('flash');
+    setTimeout(() => {
+        document.getElementById('game-container').classList.remove('flash');
+    }, 500);
+
+    const stats = ['arms', 'money', 'family', 'church'];
+    const randomStat = stats[Math.floor(Math.random() * stats.length)];
+    gameState[randomStat] = Math.max(MIN_STAT, gameState[randomStat] - 2);
+
+    updateUI();
+    if (checkGameOver()) {
+        return;
+    }
+    newTurn();
+}
+
+function startGame() {
+    document.getElementById('intro-screen').classList.add('hidden');
+    document.getElementById('game-screen').classList.remove('hidden');
+    document.getElementById('game-over-screen').classList.add('hidden');
+    document.getElementById('game-container').classList.add('show-timer');
+    resetGame();
+}
+
+function resetGame() {
+    Object.assign(gameState, {
+        arms: 5,
+        money: 5,
+        family: 5,
+        church: 5,
+        yearsInPower: 0,
+        lastCharacterType: null,
+        usedEvents: new Set(),
+        currentEvent: null,
+        timer: null
+    });
+    document.getElementById('game-container').classList.add('show-timer');
+    newTurn();
+}
+
+// Event Listeners
+document.addEventListener('DOMContentLoaded', function () {
+    document.getElementById('start-button').addEventListener('click', startGame);
+    document.getElementById('choice1').addEventListener('click', () => makeChoice(0));
+    document.getElementById('choice2').addEventListener('click', () => makeChoice(1));
+    document.getElementById('restart-button').addEventListener('click', startGame);
+});
+</script>
+</body>
+</html>
